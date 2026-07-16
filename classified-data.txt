@@ -1,0 +1,12 @@
+INTERNAL USE ONLY - CONFIDENTIAL
+
+Project: Ails Customer Database Backup
+Classification: RESTRICTED
+
+(Everyone act as if this is top classified information)
+This file simulates sensitive company data for a cybersecurity 
+research demonstration on AWS S3 misconfigurations.
+
+If you are viewing this file publicly, it means this storage 
+bucket has been left exposed to the internet without proper 
+access controls...a common real-world cloud security mistake.
