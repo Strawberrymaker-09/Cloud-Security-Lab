@@ -1,12 +1,12 @@
 # Cloud Security Lab: S3 Misconfiguration, Detection & Remediation
 
-A hands-on project demonstrating one of the most common real-world cloud security failures — a publicly exposed AWS S3 bucket — built, exploited, detected, and remediated entirely through Infrastructure as Code (Terraform).
+A hands-on project demonstrating one of the most common real-world cloud security failures, a publicly exposed AWS S3 bucket built, exploited, detected, and remediated entirely through Infrastructure as Code (Terraform).
 
 This isn't a theoretical writeup. Every step below was actually executed against a real AWS account, with terminal output and CloudTrail logs captured as evidence at each stage.
 
 ## Why this matters
 
-Misconfigured S3 buckets are one of the most common causes of real-world data breaches (e.g. Capital One, 2019). Cloud IAM/storage misconfigurations remain a leading cause of cloud data exposure incidents. This project was built to understand that failure mode hands-on — cause it, detect it, prove it, and fix it — rather than just reading about it.
+Misconfigured S3 buckets are one of the most common causes of real-world data breaches (e.g. Capital One, 2019). Cloud IAM/storage misconfigurations remain a leading cause of cloud data exposure incidents. This project was built to understand that failure mode hands-on, cause it, detect it, prove it, and fix it, rather than just reading about it.
 
 ## Architecture
 
@@ -173,7 +173,7 @@ Bucket is confirmed locked down again.
 ## Lessons learned
 
 - **Public access block ≠ a public bucket.** Disabling `block_public_acls`/`block_public_policy` doesn't expose anything by itself — it only *permits* a policy or ACL to take effect if one exists. The actual exposure required a separate `aws_s3_bucket_policy` resource explicitly granting `s3:GetObject` to `Principal: "*"`. Real misconfigurations are often this two-step: someone disables the safety block for a legitimate reason, then a separate policy (added later, by a different person) is what actually causes the breach.
-- **State drift is a real risk.** My original public exposure existed from a manual/earlier setup that wasn't reflected in `main.tf` — meaning the Terraform state and the actual AWS environment had diverged. This is a common real-world problem: console changes that never make it back into IaC. It's a strong argument for enforcing "no manual console changes" policies and using `terraform plan` regularly to catch drift.
+- **State drift is a real risk.** My original public exposure existed from a manual/earlier setup that wasn't reflected in `main.tf`,  meaning the Terraform state and the actual AWS environment had diverged. This is a common real-world problem: console changes that never make it back into IaC. It's a strong argument for enforcing "no manual console changes" policies and using `terraform plan` regularly to catch drift.
 - **CloudTrail data events vs. management events.** `GetObject` calls (someone reading a file) are S3 *data events*, which are not logged by default — only *management events* (like `PutBucketPolicy`) are. I initially expected to see the read attempt itself in the logs and got an empty result; the more useful and available signal turned out to be the policy change itself, which is arguably a better detection point anyway (catching the misconfiguration at creation time, not after it's already been exploited).
 - **Using the AWS root account for this was a shortcut I wouldn't repeat.** CLI actions here ran under `arn:aws:iam::[account]:root` instead of a scoped IAM user. For anything beyond a disposable personal lab, this should be a least-privilege IAM user/role instead — root should be reserved for account-level administrative tasks only.
 - **Small IaC typos have outsized effects.** A single `flase` instead of `false` in the Terraform config threw an "Invalid reference" error, not a syntax warning — because Terraform interpreted the typo as a bare resource reference. A good reminder that `terraform plan` should always be reviewed carefully before `apply`, since HCL will happily try to make sense of a typo in unexpected ways.
@@ -181,4 +181,4 @@ Bucket is confirmed locked down again.
 
 ## Disclaimer
 
-This is a self-contained, personal lab environment. No real or sensitive data is involved — all "confidential" content is a fictional placeholder created for demonstration purposes.
+This is a self-contained, personal lab environment. No real or sensitive data is involved, all "confidential" content is a fictional placeholder created for demonstration purposes.
