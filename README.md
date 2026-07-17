@@ -191,4 +191,4 @@ Bucket is confirmed locked down again.
 
 ## Disclaimer
 
-This is a self-contained, personal lab environment. No real or sensitive data is involved — all "confidential" content is a fictional placeholder created for demonstration purposes.
+This is a self-contained, personal lab environment. No real or sensitive data is involved, all "confidential" content is a fictional placeholder created for demonstration purposes.
