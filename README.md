@@ -1,6 +1,6 @@
 # Cloud Security Lab: S3 Misconfiguration, Detection & Remediation
 
-A hands-on project demonstrating one of the most common real-world cloud security failures, a publicly exposed AWS S3 bucket built, exploited, detected, and remediated entirely through Infrastructure as Code (Terraform).
+A hands-on project demonstrating one of the most common real-world cloud security failures, a publicly exposed AWS S3 bucket, built, exploited, detected, and remediated entirely through Infrastructure as Code (Terraform).
 
 This isn't a theoretical writeup. Every step below was actually executed against a real AWS account, with terminal output and CloudTrail logs captured as evidence at each stage.
 
@@ -59,6 +59,8 @@ $ aws s3api get-public-access-block --bucket cloud-sec-lab-demo-aila-2026
 }
 ```
 
+![Public access block enabled](screenshots/after_policy.png)
+
 ### 2. Introduce the misconfiguration (Terraform)
 
 Added a public-read bucket policy resource to `main.tf`:
@@ -101,6 +103,8 @@ resource "aws_s3_bucket_policy" "vulnerable_bucket_policy" {
 Plan: 1 to add, 0 to change, 0 to destroy.
 ```
 
+![Terraform plan showing misconfiguration](screenshots/terraform_plan_break.png)
+
 ### 3. Verify the exposure (terminal, unauthenticated)
 
 ```
@@ -114,6 +118,8 @@ Classification: RESTRICTED
 ```
 
 Bucket contents are readable by anyone, with no AWS credentials, confirming the misconfiguration is live.
+
+![Exposed bucket returns 200 OK](screenshots/curl_exposed.png)
 
 ### 4. Detect it: CloudTrail caught the change
 
@@ -160,6 +166,8 @@ resource "aws_s3_bucket_public_access_block" "vulnerable_bucket_access" {
 Plan: 0 to add, 1 to change, 1 to destroy.
 ```
 
+![Terraform plan showing remediation](screenshots/terraform_plan_fix.png)
+
 ### 6. Verify the fix
 
 ```
@@ -170,15 +178,17 @@ HTTP/1.1 403 Forbidden
 
 Bucket is confirmed locked down again.
 
+![Bucket returns 403 Forbidden after fix](screenshots/curl_fixed.png)
+
 ## Lessons learned
 
-- **Public access block ≠ a public bucket.** Disabling `block_public_acls`/`block_public_policy` doesn't expose anything by itself — it only *permits* a policy or ACL to take effect if one exists. The actual exposure required a separate `aws_s3_bucket_policy` resource explicitly granting `s3:GetObject` to `Principal: "*"`. Real misconfigurations are often this two-step: someone disables the safety block for a legitimate reason, then a separate policy (added later, by a different person) is what actually causes the breach.
-- **State drift is a real risk.** My original public exposure existed from a manual/earlier setup that wasn't reflected in `main.tf`,  meaning the Terraform state and the actual AWS environment had diverged. This is a common real-world problem: console changes that never make it back into IaC. It's a strong argument for enforcing "no manual console changes" policies and using `terraform plan` regularly to catch drift.
-- **CloudTrail data events vs. management events.** `GetObject` calls (someone reading a file) are S3 *data events*, which are not logged by default — only *management events* (like `PutBucketPolicy`) are. I initially expected to see the read attempt itself in the logs and got an empty result; the more useful and available signal turned out to be the policy change itself, which is arguably a better detection point anyway (catching the misconfiguration at creation time, not after it's already been exploited).
-- **Using the AWS root account for this was a shortcut I wouldn't repeat.** CLI actions here ran under `arn:aws:iam::[account]:root` instead of a scoped IAM user. For anything beyond a disposable personal lab, this should be a least-privilege IAM user/role instead — root should be reserved for account-level administrative tasks only.
-- **Small IaC typos have outsized effects.** A single `flase` instead of `false` in the Terraform config threw an "Invalid reference" error, not a syntax warning — because Terraform interpreted the typo as a bare resource reference. A good reminder that `terraform plan` should always be reviewed carefully before `apply`, since HCL will happily try to make sense of a typo in unexpected ways.
+- **Public access block ≠ a public bucket.** Disabling `block_public_acls`/`block_public_policy` doesn't expose anything by itself, it only *permits* a policy or ACL to take effect if one exists. The actual exposure required a separate `aws_s3_bucket_policy` resource explicitly granting `s3:GetObject` to `Principal: "*"`. Real misconfigurations are often this two-step: someone disables the safety block for a legitimate reason, then a separate policy (added later, by a different person) is what actually causes the breach.
+- **State drift is a real risk.** My original public exposure existed from a manual/earlier setup that wasn't reflected in `main.tf`, meaning the Terraform state and the actual AWS environment had diverged. This is a common real-world problem: console changes that never make it back into IaC. It's a strong argument for enforcing "no manual console changes" policies and using `terraform plan` regularly to catch drift.
+- **CloudTrail data events vs. management events.** `GetObject` calls (someone reading a file) are S3 *data events*, which are not logged by default, only *management events* (like `PutBucketPolicy`) are. I initially expected to see the read attempt itself in the logs and got an empty result; the more useful and available signal turned out to be the policy change itself, which is arguably a better detection point anyway (catching the misconfiguration at creation time, not after it's already been exploited).
+- **Using the AWS root account for this was a shortcut I wouldn't repeat.** CLI actions here ran under `arn:aws:iam::[account]:root` instead of a scoped IAM user. For anything beyond a disposable personal lab, this should be a least-privilege IAM user/role instead, root should be reserved for account-level administrative tasks only.
+- **Small IaC typos have outsized effects.** A single `flase` instead of `false` in the Terraform config threw an "Invalid reference" error, not a syntax warning, because Terraform interpreted the typo as a bare resource reference. A good reminder that `terraform plan` should always be reviewed carefully before `apply`, since HCL will happily try to make sense of a typo in unexpected ways.
 - **What I'd add for a production environment:** AWS Config rules or IAM Access Analyzer to catch public bucket policies automatically and continuously, rather than relying on manual `terraform plan` review; S3 data event logging enabled for sensitive buckets; and MFA-protected, scoped IAM roles instead of root/long-lived credentials.
 
 ## Disclaimer
 
-This is a self-contained, personal lab environment. No real or sensitive data is involved, all "confidential" content is a fictional placeholder created for demonstration purposes.
+This is a self-contained, personal lab environment. No real or sensitive data is involved — all "confidential" content is a fictional placeholder created for demonstration purposes.
